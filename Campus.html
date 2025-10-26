@@ -1,0 +1,558 @@
+<!--
+The Haven - Campus Ambassador Portal (Single-file prototype)
+
+INSTRUCTIONS:
+1) Create a Firebase project at https://console.firebase.google.com/
+2) Enable Authentication (Email/Password), Firestore Database (in production rules set appropriately), and Storage (for review screenshots).
+3) Replace the firebaseConfig object below with your project's config values.
+4) Deploy as static website (Netlify/Vercel/Firebase Hosting) or host under your domain (embed in iframe if needed).
+5) Default admin email: change ADMIN_EMAIL to your preferred admin account.
+
+This single HTML file includes:
+- Landing / Join form
+- Login / Signup
+- Ambassador Dashboard (points, level, badges, tasks, referral link, review upload)
+- Leaderboard
+- Simple Admin panel (create tasks, adjust points)
+
+This is a minimal, fully client-side prototype using Firebase (free-tier friendly).
+-->
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The Haven - Campus Ambassador Portal</title>
+
+  <style>
+    /* Dark Theme */
+    body.dark {
+      background: #121212;
+      color: #e0e0e0;
+    }
+    body.dark header {
+      background: #1f1f1f;
+      border-bottom: 1px solid #333;
+    }
+    body.dark .card {
+      background: #1e1e1e;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+    }
+    body.dark input, body.dark select, body.dark textarea {
+      background: #2c2c2c;
+      border: 1px solid #444;
+      color: #e0e0e0;
+    }
+    body.dark .btn-ghost {
+      border: 1px solid #555;
+      color: #fff;
+    }
+    body.dark .progress {
+      background: #333;
+    }
+
+    /* Minimal, clean styles */
+    :root{--accent:#111827;--accent-2:#f59e0b;--muted:#6b7280}
+    body{font-family:Inter,system-ui,Arial,Helvetica,sans-serif;margin:0;background:#f7f7fb;color:#111}
+    header{background:#fff;border-bottom:1px solid #eee;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
+    .container{max-width:980px;margin:28px auto;padding:0 16px}
+    h1{margin:0;font-size:22px}
+    .card{background:#fff;padding:16px;border-radius:10px;box-shadow:0 6px 18px rgba(15,15,15,0.05);margin-bottom:16px}
+    .btn{background:var(--accent);color:#fff;padding:8px 12px;border-radius:8px;border:none;cursor:pointer}
+    .btn-ghost{background:transparent;border:1px solid #ddd;padding:8px 12px;border-radius:8px}
+    .grid{display:grid;grid-template-columns:1fr 320px;gap:16px}
+    label{display:block;margin:8px 0 6px;font-size:13px;color:var(--muted)}
+    input,select,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #e6e6e9}
+    ul{padding-left:16px}
+    .small{font-size:13px;color:var(--muted)}
+    .points{font-size:28px;font-weight:700}
+    .progress{height:12px;background:#eee;border-radius:999px;overflow:hidden}
+    .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent-2),#ef4444)}
+    .task{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed #f0f0f0}
+    .badge{display:inline-block;padding:6px 8px;border-radius:999px;background:#f1f5f9;font-weight:600;margin-right:6px}
+    .leaderboard li{margin-bottom:6px}
+    .hidden{display:none}
+    footer{padding:20px;text-align:center;color:var(--muted)}
+    .admin-box{background:#fff3cd;padding:12px;border-radius:8px;border:1px solid #ffe8a1}
+  </style>
+  <!-- Firebase (compat) SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+</head>
+<body>
+  <header>
+    <div style="display:flex;align-items:center;gap:12px">
+      <img src="" alt="logo" style="width:36px;height:36px;border-radius:6px;background:#000"/>
+      <h1>The Haven — Campus Ambassadors</h1>
+    </div>
+    <div id="nav-area" style="display:flex;align-items:center;gap:8px">
+      <button class="btn" id="join-btn">Join / Login</button>
+      <button class="btn-ghost" id="dark-toggle">🌙</button>
+      <button class="btn-ghost hidden" id="back-btn">← Back</button>
+
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- Landing / Overview -->
+    <section class="card" id="landing">
+      <h2>Become The Haven Campus Ambassador ✨</h2>
+      <p class="small">Represent The Haven on your campus, earn points, unlock levels and win exclusive merch & internships.</p>
+      <div style="display:flex;gap:12px;margin-top:12px">
+        <button class="btn" id="cta-join">Join Now</button>
+        <button class="btn-ghost" id="cta-leaderboard">View Leaderboard</button>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:16px;flex-wrap:wrap">
+        <div style="min-width:220px" class="card">
+          <strong>10-Level system</strong>
+          <p class="small">Climb from New Recruit → Haven Legend. Each level unlocks rewards.</p>
+        </div>
+        <div style="min-width:220px" class="card">
+          <strong>Points & Badges</strong>
+          <p class="small">Complete tasks, gather reviews & referrals to earn points and badges.</p>
+        </div>
+        <div style="min-width:220px" class="card">
+          <strong>Leaderboard & Rewards</strong>
+          <p class="small">Top performers win monthly rewards, internships & cash bonuses.</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="grid">
+      <div>
+        <!-- Dashboard (login required) -->
+        <section id="dashboard" class="card hidden">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div id="user-name" style="font-weight:700">Hello, Ambassador</div>
+              <div id="user-college" class="small">Your College</div>
+            </div>
+            <div style="text-align:right">
+              <div class="points" id="user-points">0 pts</div>
+              <div class="small">Level <span id="user-level">1</span></div>
+              <div style="margin-top:8px">
+                <button class="btn-ghost" id="logout-btn">Logout</button>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;display:flex;gap:12px;align-items:center">
+            <div style="flex:1">
+              <label>Progress to next level</label>
+              <div class="progress"><i id="progress-bar" style="width:10%"></i></div>
+            </div>
+            <div style="width:160px;text-align:right">
+              <label>Badges</label>
+              <div id="badges-area"></div>
+            </div>
+          </div>
+
+          <hr style="margin:12px 0" />
+
+          <h3 style="margin-top:0">Tasks</h3>
+          <div id="tasks-list"></div>
+
+          <h3 style="margin-top:16px">Review Upload (Google Review proof)</h3>
+          <p class="small">Upload screenshot of the Google review after posting via your referral link to get verification points.</p>
+          <label>Referral / Review Link</label>
+          <input id="ref-link" readonly />
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn" id="copy-ref">Copy Referral Link</button>
+            <input type="file" id="review-file" />
+            <button class="btn" id="upload-review">Upload Proof</button>
+          </div>
+
+          <h3 style="margin-top:16px">Activity / Recent</h3>
+          <div id="activity-log" class="small"></div>
+        </section>
+
+        <!-- Login / Signup Card -->
+        <section id="auth-card" class="card hidden">
+          <h3 id="auth-title">Sign Up / Login</h3>
+          <div id="auth-forms">
+            <div id="signup-form">
+              <label>Full name</label>
+              <input id="signup-name" placeholder="Your name" />
+              <label>College</label>
+              <input id="signup-college" placeholder="College name" />
+              <label>Email</label>
+              <input id="signup-email" placeholder="you@college.edu" />
+              <label>Password</label>
+              <input id="signup-password" type="password" placeholder="min 6 chars" />
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button class="btn" id="signup-btn">Create Account</button>
+                <button class="btn-ghost" id="switch-login">Already have account?</button>
+              </div>
+            </div>
+
+            <div id="login-form" class="hidden">
+              <label>Email</label>
+              <input id="login-email" />
+              <label>Password</label>
+              <input id="login-password" type="password" />
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button class="btn" id="login-btn">Login</button>
+                <button class="btn-ghost" id="switch-signup">Create account</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Leaderboard Page -->
+        <section id="leaderboard-card" class="card hidden">
+          <h3>Leaderboard</h3>
+          <ol id="leaderboard" class="leaderboard small"></ol>
+        </section>
+      </div>
+
+      <aside>
+        <section class="card">
+          <h4>Program Snapshot</h4>
+          <p class="small">Levels, tasks, badges, and rewards. Track your progress after login.</p>
+          <hr />
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div><strong>Top Perks:</strong></div>
+            <ul class="small">
+              <li>Exclusive merch drops</li>
+              <li>Paid internships & stipends</li>
+              <li>Certificates & LinkedIn shoutouts</li>
+            </ul>
+            <div>
+              <strong>Referral</strong>
+              <p class="small">Share your referral to get clicks & orders. Verified reviews = more points.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="card hidden" id="admin-panel">
+          <h4>Admin Panel</h4>
+          <div class="admin-box">
+            <label>New Task Title</label>
+            <input id="admin-task-title" />
+            <label>Points</label>
+            <input id="admin-task-points" type="number" />
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button class="btn" id="admin-add-task">Add Task</button>
+            </div>
+            <hr />
+            <label>Adjust Points for User (UID)</label>
+            <input id="admin-uid" placeholder="user uid" />
+            <input id="admin-adjust-pts" type="number" placeholder="points to add" />
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button class="btn" id="admin-adjust-btn">Adjust Points</button>
+            </div>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <footer class="card small">
+      <strong>Need help?</strong> Contact thehaven@example.com • Use this portal to track your ambassador progress.
+    </footer>
+
+  </main>
+
+  <script>
+    //------Toggle Button-----
+    const darkToggle = document.getElementById('dark-toggle');
+    darkToggle.onclick = () => {
+      document.body.classList.toggle('dark');
+    };
+    // ---------- CONFIG - REPLACE WITH YOUR FIREBASE CONFIG ----------
+    const firebaseConfig = {
+      apiKey: "AIzaSyAekgPWmCwUAwnrxkyxCkLeMuGg0-8usEU",
+      authDomain: "the-haven-ambassador-portal.firebaseapp.com",
+      projectId: "the-haven-ambassador-portal",
+      storageBucket: "the-haven-ambassador-portal.firebasestorage.app",
+      messagingSenderId: "198750883763",
+      appId: "1:198750883763:web:012a4178a8b142be4e05c6",
+      measurementId: "G-SHKN3P2ENB"
+
+    };
+    // Set your admin email here (the email you'll use to manage tasks)
+    const ADMIN_EMAIL = "admin@gmail.com";
+
+    // ---------- INIT FIREBASE ----------
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+
+    // ---------- UI ELEMENTS ----------
+    const joinBtn = document.getElementById('join-btn');
+    const ctaJoin = document.getElementById('cta-join');
+    const ctaLeaderboard = document.getElementById('cta-leaderboard');
+    const landing = document.getElementById('landing');
+    const authCard = document.getElementById('auth-card');
+    const dashboard = document.getElementById('dashboard');
+    const leaderboardCard = document.getElementById('leaderboard-card');
+    const navArea = document.getElementById('nav-area');
+
+    // Auth forms
+    const signupForm = document.getElementById('signup-form');
+    const loginForm = document.getElementById('login-form');
+    const switchLogin = document.getElementById('switch-login');
+    const switchSignup = document.getElementById('switch-signup');
+
+    // Signup inputs
+    const signupName = document.getElementById('signup-name');
+    const signupCollege = document.getElementById('signup-college');
+    const signupEmail = document.getElementById('signup-email');
+    const signupPassword = document.getElementById('signup-password');
+    const signupBtn = document.getElementById('signup-btn');
+
+    // Login inputs
+    const loginEmail = document.getElementById('login-email');
+    const loginPassword = document.getElementById('login-password');
+    const loginBtn = document.getElementById('login-btn');
+
+    // Dashboard elements
+    const userNameEl = document.getElementById('user-name');
+    const userCollegeEl = document.getElementById('user-college');
+    const userPointsEl = document.getElementById('user-points');
+    const userLevelEl = document.getElementById('user-level');
+    const progressBar = document.getElementById('progress-bar');
+    const badgesArea = document.getElementById('badges-area');
+    const tasksList = document.getElementById('tasks-list');
+    const refLinkInput = document.getElementById('ref-link');
+    const copyRefBtn = document.getElementById('copy-ref');
+    const reviewFile = document.getElementById('review-file');
+    const uploadReviewBtn = document.getElementById('upload-review');
+    const activityLog = document.getElementById('activity-log');
+    const logoutBtn = document.getElementById('logout-btn');
+
+    // Admin elements
+    const adminPanel = document.getElementById('admin-panel');
+    const adminAddTaskBtn = document.getElementById('admin-add-task');
+    const adminTaskTitle = document.getElementById('admin-task-title');
+    const adminTaskPoints = document.getElementById('admin-task-points');
+    const adminUid = document.getElementById('admin-uid');
+    const adminAdjustPts = document.getElementById('admin-adjust-pts');
+    const adminAdjustBtn = document.getElementById('admin-adjust-btn');
+
+    // Leaderboard
+    const leaderboardList = document.getElementById('leaderboard');
+
+    // Simple level thresholds
+    const LEVELS = [0,200,400,700,1000,1500,2200,3000,4000,5000];
+
+    // ---------- UI EVENTS ----------
+    joinBtn.onclick = () => showAuth();
+    ctaJoin.onclick = () => showAuth();
+    ctaLeaderboard.onclick = () => { showLeaderboard(); };
+    switchLogin.onclick = () => { signupForm.classList.add('hidden'); loginForm.classList.remove('hidden'); document.getElementById('auth-title').innerText='Login'; };
+    switchSignup.onclick = () => { signupForm.classList.remove('hidden'); loginForm.classList.add('hidden'); document.getElementById('auth-title').innerText='Sign Up'; };
+
+    signupBtn.onclick = async () => {
+      const name = signupName.value.trim();
+      const college = signupCollege.value.trim();
+      const email = signupEmail.value.trim();
+      const password = signupPassword.value;
+      if(!name||!college||!email||password.length<6){alert('Please fill all fields and use a password with 6+ chars');return}
+      try{
+        const res = await auth.createUserWithEmailAndPassword(email,password);
+        const uid = res.user.uid;
+        const referral_code = generateReferralCode(name, uid);
+        await db.collection('ambassadors').doc(uid).set({
+          name, college, email, level:1, points:0, referrals:0, reviews:0, badges:[], joined_on: new Date().toISOString(), referral_code
+        });
+        alert('Account created! Redirecting to dashboard...');
+        loadDashboard(uid);
+      }catch(e){console.error(e);alert(e.message)}
+    };
+
+    loginBtn.onclick = async () => {
+      const email = loginEmail.value.trim();
+      const password = loginPassword.value;
+      try{
+        const res = await auth.signInWithEmailAndPassword(email,password);
+        loadDashboard(res.user.uid);
+      }catch(e){console.error(e);alert(e.message)}
+    };
+
+    logoutBtn.onclick = () => { auth.signOut(); location.reload(); };
+
+    copyRefBtn.onclick = () => {
+      refLinkInput.select(); refLinkInput.setSelectionRange(0, 99999);
+      document.execCommand('copy');
+      alert('Referral link copied to clipboard!');
+    };
+
+    uploadReviewBtn.onclick = async () => {
+      const file = reviewFile.files[0];
+      if(!file) { alert('Please choose a screenshot file to upload'); return; }
+      const user = auth.currentUser; if(!user){ alert('Please login first'); return; }
+      try{
+        const storageRef = storage.ref().child(`reviews/${user.uid}/${Date.now()}_${file.name}`);
+        const snap = await storageRef.put(file);
+        const url = await snap.ref.getDownloadURL();
+        // Save review proof in Firestore for admin verification
+        await db.collection('review_proofs').add({ uid:user.uid, url, created_at:new Date().toISOString(), verified:false });
+        await addActivity(user.uid, `Uploaded review proof`);
+        alert('Uploaded! Admin will verify and award points soon.');
+      }catch(e){console.error(e);alert('Upload failed: '+e.message)}
+    };
+
+    adminAddTaskBtn.onclick = async () => {
+      const title = adminTaskTitle.value.trim();
+      const pts = parseInt(adminTaskPoints.value || '0');
+      if(!title||!pts) { alert('Task title and points required'); return; }
+      await db.collection('tasks').add({ title, points:pts, type:'general', active:true, created_at:new Date().toISOString() });
+      alert('Task added'); adminTaskTitle.value=''; adminTaskPoints.value='';
+    };
+
+    adminAdjustBtn.onclick = async () => {
+      const uid = adminUid.value.trim();
+      const pts = parseInt(adminAdjustPts.value || '0');
+      if(!uid||!pts){alert('UID and points required');return}
+      const userRef = db.collection('ambassadors').doc(uid);
+      await userRef.update({ points: firebase.firestore.FieldValue.increment(pts) });
+      alert('Points adjusted'); adminUid.value=''; adminAdjustPts.value='';
+    };
+
+    // ---------- UTILS ----------
+    function showAuth(){ landing.classList.add('hidden'); authCard.classList.remove('hidden'); dashboard.classList.add('hidden'); leaderboardCard.classList.add('hidden'); }
+    function showDashboard(){ landing.classList.add('hidden'); authCard.classList.add('hidden'); dashboard.classList.remove('hidden'); leaderboardCard.classList.add('hidden'); }
+    function showLeaderboard(){ landing.classList.add('hidden'); authCard.classList.add('hidden'); dashboard.classList.add('hidden'); leaderboardCard.classList.remove('hidden'); loadLeaderboard(); }
+
+    function generateReferralCode(name, uid){
+      const short = name.split(' ')[0].substr(0,4).toUpperCase();
+      return `${short}_${uid.substring(0,5)}`;
+    }
+
+    function getLevelFromPoints(points){
+      for(let i=LEVELS.length-1;i>=0;i--){ if(points>=LEVELS[i]) return i+1; }
+      return 1;
+    }
+
+    async function addActivity(uid, text){
+      await db.collection('activities').add({ uid, text, ts:new Date().toISOString() });
+    }
+
+    // ---------- DASHBOARD LOADING ----------
+    async function loadDashboard(uid){
+      try{
+      const doc = await db.collection('ambassadors').doc(uid).get();
+      if(!doc.exists){ alert('Profile not found. Please sign up again.'); return; }
+      const data = doc.data() || {};
+
+      // update UI safely
+      userNameEl.innerText = data.name || 'Ambassador';
+      userCollegeEl.innerText = data.college || '';
+      const points = data.points || 0;
+      userPointsEl.innerText = `${points} pts`;
+      const level = getLevelFromPoints(points);
+      userLevelEl.innerText = level;
+
+      const nextThreshold = LEVELS[Math.min(level, LEVELS.length-1)];
+      const prevThreshold = LEVELS[Math.max(0, level-1)];
+      const pct = ((points - prevThreshold) / Math.max(1, nextThreshold - prevThreshold)) * 100;
+      progressBar.style.width = Math.min(100, Math.max(6,pct)) + '%';
+
+      // badges safely
+      badgesArea.innerHTML = '';
+      (data.badges || []).forEach(b=>{
+        const span=document.createElement('span');
+        span.className='badge';
+        span.innerText=b;
+        badgesArea.appendChild(span);
+      });
+
+      // referral link
+      const origin = window.location.origin;
+      const refUrl = `${origin}/ambassador?ref=${encodeURIComponent(data.referral_code||'REF123')}`;
+      refLinkInput.value = refUrl;
+
+      // tasks safely
+      tasksList.innerHTML = '<div class="small">Loading tasks...</div>';
+      try{
+        const tasksSnap = await db.collection('tasks').where('active','==',true).get();
+        tasksList.innerHTML = '';
+        tasksSnap.forEach(t=>{
+          const td = t.data() || {};
+          const div = document.createElement('div'); div.className='task';
+          div.innerHTML = `<div><strong>${td.title||'Untitled Task'}</strong><div class='small'>+${td.points||0} pts</div></div>`;
+          const btn = document.createElement('button'); btn.className='btn-ghost'; btn.innerText='Mark Done';
+          btn.onclick = async ()=>{
+            try{
+              const exists = await db.collection('user_tasks').where('task_id','==',t.id).where('uid','==',uid).get();
+              if(!exists.empty){ alert('You already completed this task'); return; }
+              await db.collection('user_tasks').add({ uid, task_id:t.id, points:td.points||0, created_at:new Date().toISOString() });
+              await db.collection('ambassadors').doc(uid).update({ points: firebase.firestore.FieldValue.increment(td.points||0) });
+              await addActivity(uid, `Completed task: ${td.title||'Untitled Task'} (+${td.points||0} pts)`);
+              alert('Task marked complete — points added!');
+              loadDashboard(uid);
+            }catch(e){ console.error(e); alert('Error marking task: '+e.message); }
+          };
+          div.appendChild(btn); tasksList.appendChild(div);
+        });
+      }catch(e){ tasksList.innerHTML='<div class="small">Failed to load tasks.</div>'; console.error(e); }
+
+      // activity log safely
+      activityLog.innerHTML = '<div class="small">Loading...</div>';
+      try{
+        const acts = await db.collection('activities').where('uid','==',uid).orderBy('ts','desc').limit(6).get();
+        activityLog.innerHTML = '';
+        acts.forEach(a=>{
+          const d = a.data() || {};
+          activityLog.innerHTML += `<div>• ${d.text||'Activity'} <span class="small">(${d.ts ? new Date(d.ts).toLocaleString() : 'unknown'})</span></div>`;
+        });
+      }catch(e){ activityLog.innerHTML='<div class="small">Failed to load activity.</div>'; console.error(e); }
+
+      showDashboard();
+
+      // show admin if admin
+      const currentUser = auth.currentUser;
+      if(currentUser && currentUser.email === ADMIN_EMAIL){ adminPanel.classList.remove('hidden'); }
+
+    }catch(e){ console.error(e); alert('Failed to load dashboard: '+e.message) }
+  }
+
+
+
+    // Listen to auth changes
+    auth.onAuthStateChanged(user=>{
+      if(user){
+        loadDashboard(user.uid);
+        navArea.innerHTML = `<span class='small'>Logged in: ${user.email}</span> <button class='btn-ghost' id='nav-logout'>Logout</button>`;
+        document.getElementById('nav-logout').onclick = ()=>{ auth.signOut(); location.reload(); };
+      }
+    });
+
+    // Leaderboard loader
+    async function loadLeaderboard(){
+      leaderboardList.innerHTML = '<li>Loading...</li>';
+      const snap = await db.collection('ambassadors').orderBy('points','desc').limit(20).get();
+      leaderboardList.innerHTML = '';
+      let i=1;
+      snap.forEach(doc=>{
+        const d = doc.data(); leaderboardList.innerHTML += `<li>${i}. ${d.name} — ${d.college} — ${d.points || 0} pts</li>`; i++;
+      });
+      // show leaderboard card
+      landing.classList.add('hidden'); authCard.classList.add('hidden'); dashboard.classList.add('hidden'); leaderboardCard.classList.remove('hidden');
+    }
+
+    // Initialize small sample tasks if none exist (run once)
+    async function seedTasksOnce(){
+      const snap = await db.collection('tasks').limit(1).get();
+      if(snap.empty){
+        const defaults = [
+          { title:'Post a reel or story wearing The Haven (+tag)', points:100, type:'social', active:true },
+          { title:'Gather 3 Google reviews (verified)', points:300, type:'review', active:true },
+          { title:'Refer 2 friends who register', points:150, type:'referral', active:true }
+        ];
+        for(const t of defaults) await db.collection('tasks').add({ ...t, created_at:new Date().toISOString() });
+        console.log('Seeded default tasks');
+      }
+    }
+
+    // Run seed once after page loads
+    window.addEventListener('load',()=>{ seedTasksOnce(); });
+
+  </script>
+</body>
+</html>
