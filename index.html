@@ -108,9 +108,27 @@ This is a minimal, fully client-side prototype using Firebase (free-tier friendl
       </div>
       <div style="margin-top:16px;display:flex;gap:16px;flex-wrap:wrap">
         <div style="min-width:220px" class="card">
-          <strong>10-Level system</strong>
-          <p class="small">Climb from New Recruit → Haven Legend. Each level unlocks rewards.</p>
+        <strong id="level-title" style="cursor:pointer">10-Level system ▼</strong>
+        <p class="small">Climb from New Recruit → Haven Legend. Each level unlocks rewards.</p>
+
+        <!-- Hidden detailed info -->
+        <div id="level-details" class="small hidden" style="margin-top:8px;">
+          <ol>
+            <li>Level-1 – New Recruit: 0 pts</li>
+            <li>Level-2 – Campus Star: 200 pts</li>
+            <li>Level-3 – Rising Ambassador: 400 pts</li>
+            <li>Level-4 – Campus Hero: 700 pts</li>
+            <li>Level-5 – Senior Ambassador: 1000 pts</li>
+            <li>Level-6 – Expert Ambassador: 1500 pts</li>
+            <li>Level-7 – Mentor: 2200 pts</li>
+            <li>Level-8 – Campus Leader: 3000 pts</li>
+            <li>Level-9 – Haven Legend: 4000 pts</li>
+            <li>Level-10 – Supreme Legend: 5000 pts</li>
+          </ol>
         </div>
+      </div>
+
+        
         <div style="min-width:220px" class="card">
           <strong>Points & Badges</strong>
           <p class="small">Complete tasks, gather reviews & referrals to earn points and badges.</p>
@@ -251,7 +269,7 @@ This is a minimal, fully client-side prototype using Firebase (free-tier friendl
     </div>
 
     <footer class="card small">
-      <strong>Need help?</strong> Contact thehaven@example.com • Use this portal to track your ambassador progress.
+      <strong>Need help?</strong> Contact thehavenstoreofficial@gmail.com • Use this portal to track your ambassador progress.
     </footer>
 
   </main>
@@ -262,6 +280,19 @@ This is a minimal, fully client-side prototype using Firebase (free-tier friendl
     darkToggle.onclick = () => {
       document.body.classList.toggle('dark');
     };
+
+    const levelTitle = document.getElementById('level-title');
+    const levelDetails = document.getElementById('level-details');
+
+    levelTitle.onclick = () => {
+      levelDetails.classList.toggle('hidden'); // show/hide
+      // Optional: arrow toggle
+      levelTitle.innerText = levelDetails.classList.contains('hidden') 
+        ? "10-Level system ▼" 
+        : "10-Level system ▲";
+    };
+
+
     // ---------- CONFIG - REPLACE WITH YOUR FIREBASE CONFIG ----------
     const firebaseConfig = {
       apiKey: "AIzaSyAekgPWmCwUAwnrxkyxCkLeMuGg0-8usEU",
